@@ -57,202 +57,199 @@ OAM_COPY        = $0200
 .segment "STARTUP"
 .segment "CODE"
 
+reset:
+    sei             ; disable IRQs
+    cld             ; disable decimal mode
+    ldx #$40
+    stx $4017       ; disable APU frame IRQ
+    ldx #$FF
+    txs             ; Set up stack
+    inx             ; now X = 0
+    stx PPU_CTRL    ; disable NMI
+    stx PPU_MASK    ; disable rendering
+    stx $4010       ; disable DMC IRQs
 
+    jsr vblankwait
+    txa
 
-RESET:
-    SEI             ; disable IRQs
-    CLD             ; disable decimal mode
-    LDX #$40
-    STX $4017       ; disable APU frame IRQ
-    LDX #$FF
-    TXS             ; Set up stack
-    INX             ; now X = 0
-    STX PPU_CTRL    ; disable NMI
-    STX PPU_MASK    ; disable rendering
-    STX $4010       ; disable DMC IRQs
-
-    JSR vblankwait
-    TXA
 clearmem:
-    LDA #$00
-    STA $0000, x
-    STA $0100, x
-    STA $0300, x
-    STA $0400, x
-    STA $0500, x
-    STA $0600, x
-    STA $0700, x
-    LDA #$FE
-    STA $0200, x
-    LDA #$00
-    INX
-    BNE clearmem
+    lda #$00
+    sta $0000, x
+    sta $0100, x
+    sta $0300, x
+    sta $0400, x
+    sta $0500, x
+    sta $0600, x
+    sta $0700, x
+    lda #$FE
+    sta $0200, x
+    lda #$00
+    inx
+    bne clearmem
 
-    JSR vblankwait
+    jsr vblankwait
 
-
-loadpalette:
-    LDA PPU_STATUS          ; Read PPU status to reset the high/low latch
-    LDA #>PALETTE_RAM
-    STA PPU_ADDR            ; Write the high byte of $3F00 address
-    LDA #<PALETTE_RAM
-    STA PPU_ADDR            ; Write the low byte of $3F00 address
+load_palette:
+    lda PPU_STATUS          ; Read PPU status to reset the high/low latch
+    lda #>PALETTE_RAM
+    sta PPU_ADDR            ; Write the high byte of $3F00 address
+    lda #<PALETTE_RAM
+    sta PPU_ADDR            ; Write the low byte of $3F00 address
     
-    LDX #$00
-loadpaletteloop:
-    LDA palette, x          ; Load data from address (PaletteData + the value in x)
-    STA PPU_DATA            ; Write palette data to PPU
-    INX                     ; Increment x
-    CPX #32                ; Compare X to decimal 32
-    BNE loadpaletteloop    ; Branch to loadpaletteloop if compare was not equal
+    ldx #$00
+load_palette_loop:
+    lda palette, x          ; Load data from address (PaletteData + the value in x)
+    sta PPU_DATA            ; Write palette data to PPU
+    inx                     ; Increment x
+    cpx #32                ; Compare X to decimal 32
+    bne load_palette_loop    ; Branch to load_palette_loop if compare was not equal
 
 load_sprites:
-    LDA PPU_STATUS
-    LDX #00
+    lda PPU_STATUS
+    ldx #00
 load_sprite_loop:
-    LDA sprites, x
+    lda sprites, x
     sta OAM_COPY, x
     inx
     cpx #64
     bne load_sprite_loop
     
-loadnametable_0:
-    LDA PPU_STATUS
-    LDA #>NAMETABLE_0
-    STA PPU_ADDR
-    LDA #<NAMETABLE_0
-    STA PPU_ADDR
-    LDA #<title_nametable
-    STA pointer + 0
-    LDA #>title_nametable
-    STA pointer + 1
+load_nametable_0:
+    lda PPU_STATUS
+    lda #>NAMETABLE_0
+    sta PPU_ADDR
+    lda #<NAMETABLE_0
+    sta PPU_ADDR
+    lda #<title_nametable
+    sta pointer + 0
+    lda #>title_nametable
+    sta pointer + 1
     jsr load_nametable
 
-loadnametable_1:
-    LDA PPU_STATUS
-    LDA #>NAMETABLE_1
-    STA PPU_ADDR
-    LDA #<NAMETABLE_1
-    STA PPU_ADDR
-    LDA #<playfield_nametable
-    STA pointer + 0
-    LDA #>playfield_nametable
-    STA pointer + 1
+load_nametable_1:
+    lda PPU_STATUS
+    lda #>NAMETABLE_1
+    sta PPU_ADDR
+    lda #<NAMETABLE_1
+    sta PPU_ADDR
+    lda #<playfield_nametable
+    sta pointer + 0
+    lda #>playfield_nametable
+    sta pointer + 1
     jsr load_nametable
     
 
-LoadAttribute:
-  LDA PPU_STATUS             ; read PPU status to reset the high/low latch
-  LDA #$23
-  STA PPU_ADDR            ; write the high byte of $23C0 address
-  LDA #$C0
-  STA PPU_ADDR             ; write the low byte of $23C0 address
-  LDX #$00              ; start out at 0
-LoadAttributeLoop:
-  LDA playfield_nametable_attribute, x      ; load data from address (attribute + the value in x)
-  STA PPU_DATA             ; write to PPU
-  INX                   ; X = X + 1
-  CPX #$08              ; Compare X to hex $08, decimal 8 - copying 8 bytes
-  BNE LoadAttributeLoop
-
-
-
-
-
+load_nametable_0_attributes:
+    lda PPU_STATUS             ; read PPU status to reset the high/low latch
+    lda #$23
+    sta PPU_ADDR            ; write the high byte of $23C0 address
+    lda #$C0
+    sta PPU_ADDR             ; write the low byte of $23C0 address
+    ldx #$00              ; start out at 0
+load_nametable_0_attribute_loop:
+    lda playfield_nametable_attribute, x      ; load data from address (attribute + the value in x)
+    sta PPU_DATA             ; write to PPU
+    inx                   ; X = X + 1
+    cpx #$08              ; Compare X to hex $08, decimal 8 - copying 8 bytes
+    bne load_nametable_0_attribute_loop
 
 
 ;;; Set starting game state
-    LDA #STATEPLAYING
-    STA gamestate
+setup:
+    lda #STATEPLAYING
+    sta gamestate
 
-    CLI
+    cli
 
-    LDA #%10000000      ; enable NMI, sprites from pattern table 0, background from pattern table 0
-    STA PPU_CTRL
+    lda #%10000000      ; enable NMI, sprites from pattern table 0, background from pattern table 0
+    sta PPU_CTRL
 
-    LDA #%00011110      ; enable sprites, enable background, noclipping on left side
-    STA PPU_MASK
-    LDA #$00            ; tell the PPU there is no background scrolling
-    STA PPU_SCROLL
-    STA PPU_SCROLL
+    lda #%00011110      ; enable sprites, enable background, noclipping on left side
+    sta PPU_MASK
+    lda #$00            ; tell the PPU there is no background scrolling
+    sta PPU_SCROLL
+    sta PPU_SCROLL
 
 forever:
-    JMP forever ; jump back to forever, infinint loop
+    jmp forever ; jump back to forever, infinint loop
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; VBLANK loop - called every frame ;;;
+;;; nmi loop - called every frame ;;;
 
-VBLANK:
-    LDA #<OAM_COPY
-    STA OAM_ADDR           ; Set the low byte (00) of the RAM address
-    LDA #>OAM_COPY
-    STA OAM_DMA           ; Set the high byte (02) of the RAM address, start the transfer
+nmi:
+    lda #<OAM_COPY
+    sta OAM_ADDR           ; Set the low byte (00) of the RAM address
+    lda #>OAM_COPY
+    sta OAM_DMA           ; Set the high byte (02) of the RAM address, start the transfer
 
     ;; This is the PPU clean up section, so rendering the next frame starts properly
-    LDA #%10000000      ; enable NMI, sprites from pattern table 0, background from pattern table 0
-    STA PPU_CTRL
-    LDA #%00011110      ; enable sprites, enable background, no clipping on left side
-    STA PPU_MASK
-    LDA #$00            ; tell the PPU there is no background scrolling
-    STA PPU_SCROLL
-    STA PPU_SCROLL
+    lda #%10000000      ; enable NMI, sprites from pattern table 0, background from pattern table 0
+    sta PPU_CTRL
+    lda #%00011110      ; enable sprites, enable background, no clipping on left side
+    sta PPU_MASK
+    lda #$00            ; tell the PPU there is no background scrolling
+    sta PPU_SCROLL
+    sta PPU_SCROLL
 
     ;; all graphics updates done by here, run game engine
 
     
-    JSR ReadController1     ;; get the current button data for player 1
-    JSR ReadController2     ;; get the current button data for player 2
+    jsr read_controller_1     ;; get the current button data for player 1
+    jsr read_controller_2     ;; get the current button data for player 2
 
-    RTI
+    rti
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Subroutines ;;;
 
 vblankwait:
-    BIT PPU_STATUS
-    BPL vblankwait
-    RTS
+    bit PPU_STATUS
+    bpl vblankwait
+    rts
 
 
-ReadController1:
-    LDA #$01
-    STA $4016
-    LDA #$00
-    STA $4016
-    LDX #$08
-ReadController1Loop:
-    LDA $4016
-    LSR A           ; bit 0 -> Carry
-    ROL buttons1    ; bit 0 <- Carry
-    DEX
-    BNE ReadController1Loop
-    RTS
+read_controller_1:
+    lda #$01
+    sta $4016
+    lda #$00
+    sta $4016
+    ldx #$08
+read_controller_1_loop:
+    lda $4016
+    lsr A           ; bit 0 -> Carry
+    rol buttons1    ; bit 0 <- Carry
+    dex
+    bne read_controller_1_loop
+    rts
 
-ReadController2:
-    LDA #$01
-    STA $4016
-    LDA #$00
-    STA $4016
-    LDX #$08
-ReadController2Loop:
-    LDA $4017
-    LSR A           ; bit 0 -> Carry
-    ROL buttons2    ; bit 0 <- Carry
-    DEX
-    BNE ReadController2Loop
-    RTS
+read_controller_2:
+    lda #$01
+    sta $4016
+    lda #$00
+    sta $4016
+    ldx #$08
+read_controller_2_loop:
+    lda $4017
+    lsr A           ; bit 0 -> Carry
+    rol buttons2    ; bit 0 <- Carry
+    dex
+    bne read_controller_2_loop
+    rts
 
 load_nametable:
-    LDX #04
+    ldx #04
     LDY #0
-LoadBackgroundLoop:
-    LDA (pointer), y     ; load data from address (background + the value in x)
-    STA PPU_DATA            ; write to PPU
+load_nametable_loop:
+    lda (pointer), y     ; load data from address (background + the value in x)
+    sta PPU_DATA            ; write to PPU
     INY                   ; X = X + 1
-    BNE LoadBackgroundLoop
-    DEX
-    BEQ EndLoadBackgroundLoop
+    bne load_nametable_loop
+    dex
+    BEQ end_load_nametable_loop
     INC pointer + 1              ; Compare X to hex $80, decimal 128 - copying 128 bytes
-    JMP LoadBackgroundLoop
-EndLoadBackgroundLoop:
+    jmp load_nametable_loop
+end_load_nametable_loop:
     rts
 
 
@@ -294,8 +291,8 @@ sprites:
 .include "title_nametable.asm"
 
 .segment "VECTORS"
-    .word VBLANK
-    .word RESET
+    .word nmi
+    .word reset
     .word 0
 
 .segment "CHARS"
