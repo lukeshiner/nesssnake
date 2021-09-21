@@ -14,12 +14,22 @@
 .segment "ZEROPAGE"
 ;; Variables
 
-pointer:         .res 2   ; Address pointer
-gamestate:       .res 1   ; .res 1 means reserve one byte of space
-buttons1:        .res 1   ; player 1 gamepad buttons, one bit per button
-buttons2:        .res 1   ; player 2 gamepad buttons, one bit per button
-score:           .res 1   ; Current score
-
+pointer:            .res 2  ; Address pointer
+gamestate:          .res 1  ; .res 1 means reserve one byte of space
+buttons1:           .res 1  ; player 1 gamepad buttons, one bit per button
+buttons2:           .res 1  ; player 2 gamepad buttons, one bit per button
+score:              .res 1  ; Current score
+snake_head_x:       .res 1  ; Snake head X location
+snake_head_y:       .res 1  ; Snake head Y location
+snake_head_facing:  .res 1  ; Snake head facing 0-4 NSEW
+snake_body_x:       .res 1  ; Snake head X location
+snake_body_y:       .res 1  ; Snake head Y location
+snake_body_facing:  .res 1  ; Snake head facing 0-4 NSEW
+snake_tail_x:       .res 1  ; Snake head X location
+snake_tail_y:       .res 1  ; Snake head Y location
+snake_tail_facing:  .res 1  ; Snake head facing 0-4 NSEW
+apple_x:            .res 1  ; Apple X location
+apple_y:            .res 1  ; Apple Y location
 
 ;; Declare some constants here
 
@@ -153,10 +163,23 @@ load_nametable_0_attribute_loop:
     cpx #$08              ; Compare X to hex $08, decimal 8 - copying 8 bytes
     bne load_nametable_0_attribute_loop
 
+load_nametable_1_attributes:
+    lda PPU_STATUS             ; read PPU status to reset the high/low latch
+    lda #$23
+    sta PPU_ADDR            ; write the high byte of $23C0 address
+    lda #$C0
+    sta PPU_ADDR             ; write the low byte of $23C0 address
+    ldx #$00              ; start out at 0
+load_nametable_1_attribute_loop:
+    lda playfield_nametable_attribute, x      ; load data from address (attribute + the value in x)
+    sta PPU_DATA             ; write to PPU
+    inx                   ; X = X + 1
+    cpx #$08              ; Compare X to hex $08, decimal 8 - copying 8 bytes
+    bne load_nametable_1_attribute_loop
 
 ;;; Set starting game state
 setup:
-    lda #STATEPLAYING
+    lda #STATETITLE
     sta gamestate
 
     cli
@@ -169,6 +192,8 @@ setup:
     lda #$00            ; tell the PPU there is no background scrolling
     sta PPU_SCROLL
     sta PPU_SCROLL
+
+    jsr titlescreen_setup
 
 forever:
     jmp forever ; jump back to forever, infinint loop
@@ -197,6 +222,10 @@ nmi:
     
     jsr read_controller_1     ;; get the current button data for player 1
     jsr read_controller_2     ;; get the current button data for player 2
+
+    lda gamestate
+    cmp #STATETITLE
+    jsr titlescreen
 
     rti
 
@@ -252,43 +281,342 @@ load_nametable_loop:
 end_load_nametable_loop:
     rts
 
+titlescreen_setup:
+    ; Setup background
+    jsr vblankwait
+    lda #$00
+    sta PPU_CTRL    ; disable NMI
+    sta PPU_MASK    ; disable rendering
+    sta $4010       ; disable DMC IRQs
+    lda PPU_STATUS
+    lda #>PALETTE_RAM
+    sta PPU_ADDR            ; Write the high byte of $3F00 address
+    lda #<PALETTE_RAM
+    sta PPU_ADDR
+    lda #$0F
+    sta PPU_DATA
+    lda #%10000000      ; enable NMI, sprites from pattern table 0, background from pattern table 0
+    sta PPU_CTRL
+    lda #%00011110
+
+    ; Set snake head location
+    lda #$01
+    sta snake_head_facing
+    sta snake_body_facing
+    sta snake_tail_facing
+    lda #$80
+    sta snake_head_x
+    sta snake_body_x
+    sta snake_tail_x
+    lda #$00
+    sta snake_head_y
+    lda #$40
+    sta apple_x
+    sta apple_y
+
+    rts
+
+titlescreen:
+    jsr update_sprites
+    jsr draw_sprites
+    rts
+
+update_sprites:
+    jsr update_head
+    jsr update_body
+    jsr update_tail
+    jsr update_apple
+
+draw_sprites:
+    jsr draw_snake_head
+    jsr draw_snake_body
+    jsr draw_snake_tail
+    jsr draw_apple
+    rts
+
+update_head:
+    lda snake_head_y
+    adc 1
+    sta snake_head_y
+    rts
+
+update_body:
+    lda snake_head_y
+    sbc #8
+    sta snake_body_y
+    rts
+
+update_tail:
+    lda snake_head_y
+    sbc #16
+    sta snake_tail_y
+    rts
+
+update_apple:
+    rts
+
+draw_snake_head:
+    ldx snake_head_facing
+    lda #$FE
+    head_offset_loop:
+    adc #$02
+    clc
+    dex
+    cpx #$FF
+    bne head_offset_loop
+    tax
+    ; Set tiles
+    sta head_top_left_tile
+    clc
+    adc #1
+    sta head_top_right_tile
+    txa
+    clc
+    adc #$10
+    sta head_bottom_left_tile
+    txa
+    clc
+    adc #$11
+    sta head_bottom_right_tile
+    ; Set location X
+    lda snake_head_x
+    sta head_top_left_x
+    sta head_top_right_x
+    clc
+    adc #8
+    sta head_bottom_left_x
+    sta head_bottom_right_x
+    ; Set location Y
+    lda snake_head_y
+    sta head_top_left_y
+    sta head_bottom_left_y
+    clc
+    adc #8
+    sta head_top_right_y
+    sta head_bottom_right_y
+    rts
+
+draw_snake_body:
+    ldx snake_body_facing
+    lda #$06
+    body_offset_loop:
+    adc #$02
+    clc
+    dex
+    cpx #$FF
+    bne body_offset_loop
+    tax
+    ; Set tiles
+    sta body_top_left_tile
+    clc
+    adc #1
+    sta body_top_right_tile
+    txa
+    clc
+    adc #$10
+    sta body_bottom_left_tile
+    txa
+    clc
+    adc #$11
+    sta body_bottom_right_tile
+    ; Set location X
+    lda snake_body_x
+    sta body_top_left_x
+    sta body_top_right_x
+    clc
+    adc #$08
+    sta body_bottom_left_x
+    sta body_bottom_right_x
+    ; Set location Y
+    lda snake_body_y
+    sta body_top_left_y
+    sta body_bottom_left_y
+    clc
+    adc #$08
+    sta body_top_right_y
+    sta body_bottom_right_y
+    rts
+
+draw_snake_tail:
+    ldx snake_tail_facing
+    lda #$0A
+    tail_offset_loop:
+    adc #$02
+    clc
+    dex
+    cpx #$FF
+    bne tail_offset_loop
+    tax
+    ; Set tiles
+    sta tail_top_left_tile
+    clc
+    adc #1
+    sta tail_top_right_tile
+    txa
+    clc
+    adc #$10
+    sta tail_bottom_left_tile
+    txa
+    clc
+    adc #$11
+    sta tail_bottom_right_tile
+    ; Set location X
+    lda snake_tail_x
+    sta tail_top_left_x
+    sta tail_top_right_x
+    clc
+    adc #$08
+    sta tail_bottom_left_x
+    sta tail_bottom_right_x
+    ; Set location Y
+    lda snake_tail_y
+    sta tail_top_left_y
+    sta tail_bottom_left_y
+    clc
+    adc #$08
+    sta tail_top_right_y
+    sta tail_bottom_right_y
+    rts
+
+draw_apple:
+    ; Set tiles
+    ldx #$24
+    txa
+    sta apple_top_left_tile
+    clc
+    adc #1
+    sta apple_top_right_tile
+    txa
+    clc
+    adc #$10
+    sta apple_bottom_left_tile
+    txa
+    clc
+    adc #$11
+    sta apple_bottom_right_tile
+    ; Set location X
+    lda apple_x
+    sta apple_top_left_x
+    sta apple_top_right_x
+    clc
+    adc #$08
+    sta apple_bottom_left_x
+    sta apple_bottom_right_x
+    ; Set location Y
+    lda apple_y
+    sta apple_top_left_y
+    sta apple_bottom_left_y
+    clc
+    adc #$08
+    sta apple_top_right_y
+    sta apple_bottom_right_y
+    rts
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Sprite / palette / nametable / attributes ;;;
 
 
 palette:
-    .byte $1a,$01,$21,$31   ; Background Palette 0
-    .byte $1a,$27,$20,$0f   ; Background Palette 1
-    .byte $1a,$15,$25,$16   ; Background Palette 2
-    .byte $1a,$09,$19,$29   ; Background Palette 3
+    .byte $0f,$01,$21,$31   ; Background Palette 0
+    .byte $0f,$27,$20,$0f   ; Background Palette 1
+    .byte $0f,$15,$25,$16   ; Background Palette 2
+    .byte $0f,$3d,$29,$29   ; Background Palette 3
     .byte $1a,$01,$21,$31   ; Sprite  Palette 0
     .byte $1a,$27,$20,$0f   ; Sprite  Palette 1
     .byte $1a,$15,$25,$16   ; Sprite  Palette 2
     .byte $1a,$09,$19,$29   ; Sprite  Palette 3
 
 sprites:
-        ;vert tile attr horiz
-    .byte $70, $00, $01, $78   ; Head top left
-    .byte $70, $01, $01, $80   ; Head top right
-    .byte $78, $10, $01, $78   ; Head bottom left
-    .byte $78, $11, $01, $80   ; Head bottom right
-    .byte $80, $08, $01, $78   ; Body Top Left
-    .byte $80, $09, $01, $80   ; Body Top right
-    .byte $88, $18, $01, $78   ; Body bottom left
-    .byte $88, $19, $01, $80   ; Body bottom right
-    .byte $90, $0C, $01, $78   ; tail top left
-    .byte $90, $0D, $01, $80   ; tail top right right
-    .byte $98, $1C, $01, $78   ; tail bottom left
-    .byte $98, $1D, $01, $80   ; tail bottom right
-    .byte $40, $24, $02, $38   ; apple top left
-    .byte $40, $25, $02, $40   ; apple top right right
-    .byte $48, $34, $02, $38   ; apple bottom left
-    .byte $48, $35, $02, $40   ; apple bottom right
+            ;vert   tile    attr    horiz
+    .byte   $70,    $00,    $01,    $78   ; Head top left
+    .byte   $70,    $01,    $01,    $80   ; Head top right
+    .byte   $78,    $10,    $01,    $78   ; Head bottom left
+    .byte   $78,    $11,    $01,    $80   ; Head bottom right
+    .byte   $80,    $08,    $01,    $78   ; Body Top Left
+    .byte   $80,    $09,    $01,    $80   ; Body Top right
+    .byte   $88,    $18,    $01,    $78   ; Body bottom left
+    .byte   $88,    $19,    $01,    $80   ; Body bottom right
+    .byte   $90,    $0C,    $01,    $78   ; tail top left
+    .byte   $90,    $0D,    $01,    $80   ; tail top right right
+    .byte   $98,    $1C,    $01,    $78   ; tail bottom left
+    .byte   $98,    $1D,    $01,    $80   ; tail bottom right
+    .byte   $40,    $24,    $02,    $38   ; apple top left
+    .byte   $40,    $25,    $02,    $40   ; apple top right right
+    .byte   $48,    $34,    $02,    $38   ; apple bottom left
+    .byte   $48,    $35,    $02,    $40   ; apple bottom right
     
 
 .include "playfield_nametable.asm"
 .include "title_nametable.asm"
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; OAM_COPY setup
+
+.org OAM_COPY
+head_top_left_x:       .res 1
+head_top_left_tile:    .res 1
+head_top_left_attr:    .res 1
+head_top_left_y:       .res 1
+head_top_right_x:      .res 1
+head_top_right_tile:   .res 1
+head_top_right_attr:   .res 1
+head_top_right_y:      .res 1
+head_bottom_left_x:         .res 1
+head_bottom_left_tile:      .res 1
+head_bottom_left_attr:      .res 1
+head_bottom_left_y:         .res 1
+head_bottom_right_x:        .res 1
+head_bottom_right_tile:     .res 1
+head_bottom_right_attr:     .res 1
+head_bottom_right_y:        .res 1
+body_top_left_x:       .res 1
+body_top_left_tile:    .res 1
+body_top_left_attr:    .res 1
+body_top_left_y:       .res 1
+body_top_right_x:      .res 1
+body_top_right_tile:   .res 1
+body_top_right_attr:   .res 1
+body_top_right_y:      .res 1
+body_bottom_left_x:    .res 1
+body_bottom_left_tile: .res 1
+body_bottom_left_attr: .res 1
+body_bottom_left_y:    .res 1
+body_bottom_right_x:   .res 1
+body_bottom_right_tile:        .res 1
+body_bottom_right_attr:        .res 1
+body_bottom_right_y:   .res 1
+tail_top_left_x:       .res 1
+tail_top_left_tile:    .res 1
+tail_top_left_attr:    .res 1
+tail_top_left_y:       .res 1
+tail_top_right_x:      .res 1
+tail_top_right_tile:   .res 1
+tail_top_right_attr:   .res 1
+tail_top_right_y:      .res 1
+tail_bottom_left_x:    .res 1
+tail_bottom_left_tile: .res 1
+tail_bottom_left_attr: .res 1
+tail_bottom_left_y:    .res 1
+tail_bottom_right_x:   .res 1
+tail_bottom_right_tile:        .res 1
+tail_bottom_right_attr:        .res 1
+tail_bottom_right_y:   .res 1
+apple_top_left_x:      .res 1
+apple_top_left_tile:   .res 1
+apple_top_left_attr:   .res 1
+apple_top_left_y:      .res 1
+apple_top_right_x:     .res 1
+apple_top_right_tile:  .res 1
+apple_top_right_attr:  .res 1
+apple_top_right_y:     .res 1
+apple_bottom_left_x:   .res 1
+apple_bottom_left_tile:        .res 1
+apple_bottom_left_attr:        .res 1
+apple_bottom_left_y:   .res 1
+apple_bottom_right_x:  .res 1
+apple_bottom_right_tile:       .res 1
+apple_bottom_right_attr:       .res 1
+apple_bottom_right_y:  .res 1
 
 .segment "VECTORS"
     .word nmi
