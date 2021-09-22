@@ -356,27 +356,24 @@ update_apple:
     rts
 
 draw_snake_head:
+    clc
     ldx snake_head_facing
-    lda #$FE
+    lda #$FC
     head_offset_loop:
-    adc #$02
+    adc #$04
     clc
     dex
     cpx #$FF
     bne head_offset_loop
     tax
     ; Set tiles
-    sta head_top_left_tile
     clc
+    sta head_top_left_tile
     adc #1
     sta head_top_right_tile
-    txa
-    clc
-    adc #$10
+    adc #1
     sta head_bottom_left_tile
-    txa
-    clc
-    adc #$11
+    adc #$1
     sta head_bottom_right_tile
     ; Set location X
     lda snake_head_x
@@ -397,27 +394,24 @@ draw_snake_head:
     rts
 
 draw_snake_body:
+    clc
     ldx snake_body_facing
-    lda #$06
+    lda #$0C
     body_offset_loop:
-    adc #$02
+    adc #$04
     clc
     dex
     cpx #$FF
     bne body_offset_loop
     tax
     ; Set tiles
-    sta body_top_left_tile
     clc
+    sta body_top_left_tile
     adc #1
     sta body_top_right_tile
-    txa
-    clc
-    adc #$10
+    adc #1
     sta body_bottom_left_tile
-    txa
-    clc
-    adc #$11
+    adc #1
     sta body_bottom_right_tile
     ; Set location X
     lda snake_body_x
@@ -438,27 +432,23 @@ draw_snake_body:
     rts
 
 draw_snake_tail:
+    clc
     ldx snake_tail_facing
-    lda #$0A
+    lda #$1C
     tail_offset_loop:
-    adc #$02
+    adc #$04
     clc
     dex
     cpx #$FF
     bne tail_offset_loop
-    tax
     ; Set tiles
-    sta tail_top_left_tile
     clc
+    sta tail_top_left_tile
     adc #1
     sta tail_top_right_tile
-    txa
-    clc
-    adc #$10
+    adc #1
     sta tail_bottom_left_tile
-    txa
-    clc
-    adc #$11
+    adc #1
     sta tail_bottom_right_tile
     ; Set location X
     lda snake_tail_x
@@ -480,19 +470,14 @@ draw_snake_tail:
 
 draw_apple:
     ; Set tiles
-    ldx #$24
-    txa
-    sta apple_top_left_tile
     clc
+    lda #$30
+    sta apple_top_left_tile
     adc #1
     sta apple_top_right_tile
-    txa
-    clc
-    adc #$10
+    adc #1
     sta apple_bottom_left_tile
-    txa
-    clc
-    adc #$11
+    adc #1
     sta apple_bottom_right_tile
     ; Set location X
     lda apple_x
