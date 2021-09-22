@@ -360,9 +360,9 @@ update_apple:
 
 
 draw_snake_head:
-    lda #<head_top_left_x
+    lda #<snake_head_sprite
     sta pointer
-    lda #>head_top_left_x
+    lda #>snake_head_sprite
     sta pointer + 1
     ldx snake_head_facing
     jsr get_sprite_facing_offset
@@ -373,9 +373,9 @@ draw_snake_head:
     rts
 
 draw_snake_body:
-    lda #<body_top_left_x
+    lda #<snake_body_sprite
     sta pointer
-    lda #>body_top_left_x
+    lda #>snake_body_sprite
     sta pointer + 1
     ldx snake_body_facing
     jsr get_sprite_facing_offset
@@ -387,9 +387,9 @@ draw_snake_body:
     rts
 
 draw_snake_tail:
-    lda #<tail_top_left_x
+    lda #<snake_tail_sprite
     sta pointer
-    lda #>tail_top_left_x
+    lda #>snake_tail_sprite
     sta pointer + 1
     ldx snake_tail_facing
     jsr get_sprite_facing_offset
@@ -402,9 +402,9 @@ draw_snake_tail:
 
 draw_apple:
     ; Set tiles
-    lda #<apple_top_left_x
+    lda #<apple_sprite
     sta pointer
-    lda #>apple_top_left_x
+    lda #>apple_sprite
     sta pointer + 1
     lda #$30
     jsr set_4_tile_sprite_tiles
@@ -515,70 +515,10 @@ sprites:
 ;;; OAM_COPY setup
 
 .org OAM_COPY
-head_top_left_x:       .res 1
-head_top_left_tile:    .res 1
-head_top_left_attr:    .res 1
-head_top_left_y:       .res 1
-head_top_right_x:      .res 1
-head_top_right_tile:   .res 1
-head_top_right_attr:   .res 1
-head_top_right_y:      .res 1
-head_bottom_left_x:         .res 1
-head_bottom_left_tile:      .res 1
-head_bottom_left_attr:      .res 1
-head_bottom_left_y:         .res 1
-head_bottom_right_x:        .res 1
-head_bottom_right_tile:     .res 1
-head_bottom_right_attr:     .res 1
-head_bottom_right_y:        .res 1
-body_top_left_x:       .res 1
-body_top_left_tile:    .res 1
-body_top_left_attr:    .res 1
-body_top_left_y:       .res 1
-body_top_right_x:      .res 1
-body_top_right_tile:   .res 1
-body_top_right_attr:   .res 1
-body_top_right_y:      .res 1
-body_bottom_left_x:    .res 1
-body_bottom_left_tile: .res 1
-body_bottom_left_attr: .res 1
-body_bottom_left_y:    .res 1
-body_bottom_right_x:   .res 1
-body_bottom_right_tile:        .res 1
-body_bottom_right_attr:        .res 1
-body_bottom_right_y:   .res 1
-tail_top_left_x:       .res 1
-tail_top_left_tile:    .res 1
-tail_top_left_attr:    .res 1
-tail_top_left_y:       .res 1
-tail_top_right_x:      .res 1
-tail_top_right_tile:   .res 1
-tail_top_right_attr:   .res 1
-tail_top_right_y:      .res 1
-tail_bottom_left_x:    .res 1
-tail_bottom_left_tile: .res 1
-tail_bottom_left_attr: .res 1
-tail_bottom_left_y:    .res 1
-tail_bottom_right_x:   .res 1
-tail_bottom_right_tile:        .res 1
-tail_bottom_right_attr:        .res 1
-tail_bottom_right_y:   .res 1
-apple_top_left_x:      .res 1
-apple_top_left_tile:   .res 1
-apple_top_left_attr:   .res 1
-apple_top_left_y:      .res 1
-apple_top_right_x:     .res 1
-apple_top_right_tile:  .res 1
-apple_top_right_attr:  .res 1
-apple_top_right_y:     .res 1
-apple_bottom_left_x:   .res 1
-apple_bottom_left_tile:        .res 1
-apple_bottom_left_attr:        .res 1
-apple_bottom_left_y:   .res 1
-apple_bottom_right_x:  .res 1
-apple_bottom_right_tile:       .res 1
-apple_bottom_right_attr:       .res 1
-apple_bottom_right_y:  .res 1
+snake_head_sprite:      .res 16
+snake_body_sprite:      .res 16
+snake_tail_sprite:      .res 16
+apple_sprite:           .res 16
 
 .segment "VECTORS"
     .word nmi
