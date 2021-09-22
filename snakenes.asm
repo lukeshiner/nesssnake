@@ -268,7 +268,7 @@ read_controller_2_loop:
 
 load_nametable:
     ldx #04
-    LDY #0
+    ldy #0
 load_nametable_loop:
     lda (pointer), y     ; load data from address (background + the value in x)
     sta PPU_DATA            ; write to PPU
@@ -305,11 +305,11 @@ titlescreen_setup:
     sta snake_body_facing
     sta snake_tail_facing
     lda #$80
-    sta snake_head_x
-    sta snake_body_x
-    sta snake_tail_x
-    lda #$00
     sta snake_head_y
+    sta snake_body_y
+    sta snake_tail_y
+    lda #$00
+    sta snake_head_x
     lda #$40
     sta apple_x
     sta apple_y
@@ -335,167 +335,144 @@ draw_sprites:
     rts
 
 update_head:
-    lda snake_head_y
+    lda snake_head_x
     adc 1
-    sta snake_head_y
+    sta snake_head_x
     rts
 
 update_body:
-    lda snake_head_y
-    sbc #8
-    sta snake_body_y
+    lda snake_head_x
+    clc
+    sbc #$9
+    sta snake_body_x
     rts
 
 update_tail:
-    lda snake_head_y
-    sbc #16
-    sta snake_tail_y
+    lda snake_head_x
+    clc
+    sbc #$19
+    sta snake_tail_x
     rts
 
 update_apple:
     rts
 
+
+
 draw_snake_head:
-    clc
+    lda #<head_top_left_x
+    sta pointer
+    lda #>head_top_left_x
+    sta pointer + 1
     ldx snake_head_facing
-    lda #$FC
-    head_offset_loop:
-    adc #$04
-    clc
-    dex
-    cpx #$FF
-    bne head_offset_loop
-    tax
-    ; Set tiles
-    clc
-    sta head_top_left_tile
-    adc #1
-    sta head_top_right_tile
-    adc #1
-    sta head_bottom_left_tile
-    adc #$1
-    sta head_bottom_right_tile
-    ; Set location X
-    lda snake_head_x
-    sta head_top_left_x
-    sta head_top_right_x
-    clc
-    adc #8
-    sta head_bottom_left_x
-    sta head_bottom_right_x
-    ; Set location Y
+    jsr get_sprite_facing_offset
+    jsr set_4_tile_sprite_tiles
     lda snake_head_y
-    sta head_top_left_y
-    sta head_bottom_left_y
-    clc
-    adc #8
-    sta head_top_right_y
-    sta head_bottom_right_y
+    ldx snake_head_x
+    jsr set_sprite_x_y
     rts
 
 draw_snake_body:
-    clc
+    lda #<body_top_left_x
+    sta pointer
+    lda #>body_top_left_x
+    sta pointer + 1
     ldx snake_body_facing
-    lda #$0C
-    body_offset_loop:
-    adc #$04
-    clc
-    dex
-    cpx #$FF
-    bne body_offset_loop
-    tax
-    ; Set tiles
-    clc
-    sta body_top_left_tile
-    adc #1
-    sta body_top_right_tile
-    adc #1
-    sta body_bottom_left_tile
-    adc #1
-    sta body_bottom_right_tile
-    ; Set location X
-    lda snake_body_x
-    sta body_top_left_x
-    sta body_top_right_x
-    clc
-    adc #$08
-    sta body_bottom_left_x
-    sta body_bottom_right_x
-    ; Set location Y
+    jsr get_sprite_facing_offset
+    adc #$10
+    jsr set_4_tile_sprite_tiles
     lda snake_body_y
-    sta body_top_left_y
-    sta body_bottom_left_y
-    clc
-    adc #$08
-    sta body_top_right_y
-    sta body_bottom_right_y
+    ldx snake_body_x
+    jsr set_sprite_x_y
     rts
 
 draw_snake_tail:
-    clc
+    lda #<tail_top_left_x
+    sta pointer
+    lda #>tail_top_left_x
+    sta pointer + 1
     ldx snake_tail_facing
-    lda #$1C
-    tail_offset_loop:
-    adc #$04
-    clc
-    dex
-    cpx #$FF
-    bne tail_offset_loop
-    ; Set tiles
-    clc
-    sta tail_top_left_tile
-    adc #1
-    sta tail_top_right_tile
-    adc #1
-    sta tail_bottom_left_tile
-    adc #1
-    sta tail_bottom_right_tile
-    ; Set location X
-    lda snake_tail_x
-    sta tail_top_left_x
-    sta tail_top_right_x
-    clc
-    adc #$08
-    sta tail_bottom_left_x
-    sta tail_bottom_right_x
-    ; Set location Y
+    jsr get_sprite_facing_offset
+    adc #$20
+    jsr set_4_tile_sprite_tiles
     lda snake_tail_y
-    sta tail_top_left_y
-    sta tail_bottom_left_y
-    clc
-    adc #$08
-    sta tail_top_right_y
-    sta tail_bottom_right_y
+    ldx snake_tail_x
+    jsr set_sprite_x_y
     rts
 
 draw_apple:
     ; Set tiles
-    clc
+    lda #<apple_top_left_x
+    sta pointer
+    lda #>apple_top_left_x
+    sta pointer + 1
     lda #$30
-    sta apple_top_left_tile
-    adc #1
-    sta apple_top_right_tile
-    adc #1
-    sta apple_bottom_left_tile
-    adc #1
-    sta apple_bottom_right_tile
-    ; Set location X
-    lda apple_x
-    sta apple_top_left_x
-    sta apple_top_right_x
-    clc
-    adc #$08
-    sta apple_bottom_left_x
-    sta apple_bottom_right_x
-    ; Set location Y
+    jsr set_4_tile_sprite_tiles
     lda apple_y
-    sta apple_top_left_y
-    sta apple_bottom_left_y
-    clc
-    adc #$08
-    sta apple_top_right_y
-    sta apple_bottom_right_y
+    ldx apple_x
+    jsr set_sprite_x_y
     rts
+
+get_sprite_facing_offset:
+    ; Get the sprite tile offset to rotate the sprite
+    ; Sprite facing must be in X
+    ; Will set A to the offset
+    lda #$FC
+    clc
+    sprite_facing_offset_loop:
+    adc #4
+    clc
+    dex
+    cpx #$FF
+    bne sprite_facing_offset_loop
+    clc
+    rts
+
+set_4_tile_sprite_tiles:
+    ; Set the tiles for a m4 tile sprite.
+    ; Tiles must be contiguous in CHR ROM ordered TL, TR, BL, BR
+    ; Set A to the first tile, put target address in pointer
+    clc
+    ldy #1
+    sta (pointer),Y
+    adc #1
+    ldy #5
+    sta (pointer),Y
+    adc #1
+    ldy #9
+    sta (pointer),Y
+    adc #1
+    ldy #13
+    sta (pointer),Y
+    adc #1
+    rts
+
+set_sprite_x_y:
+    ; Sets the X and Y coords for a sprite
+    ; Sprite X location in OAM COPY must be in pointer
+    ; New Y must be in A register, New X must be in X register
+    clc
+    ldy #0
+    sta (pointer),Y
+    ldy #4
+    sta (pointer),Y
+    adc #8
+    ldy #8
+    sta (pointer),Y
+    ldy #12
+    sta (pointer),Y
+    txa
+    ldy #3
+    sta (pointer),Y
+    ldy #11
+    sta (pointer),Y
+    adc #8
+    ldy #7
+    sta (pointer),Y
+    ldy #15
+    sta (pointer),Y
+    rts
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Sprite / palette / nametable / attributes ;;;
